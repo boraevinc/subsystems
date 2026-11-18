@@ -13,8 +13,10 @@ It counts pulses from the Hall sensor to measure the speed, then adjusts the mot
 | Pin | Connected to |
 |---|---|
 | D2 | Hall sensor signal (70 pulses per turn of the output shaft) |
-| D10 | Motor MOSFET gate (PWM, 0–1023 = 0–5 V) |
+| D10 | Motor MOSFET gate (8 kHz PWM, 0–1023 = 0–100% of the 5 V motor supply) |
 | D13 | On-board LED, blinks once per turn |
+
+**Board:** Arduino Nano ESP32. It runs at **3.3 V**, and its pins are **not 5 V tolerant**. The motor and Hall sensor still run from 5 V (the Nano's VBUS pin), but the Hall signal must only ever reach D2 at 3.3 V or less. WiFi isn't used: a separate ESP32 handles the network over a wire.
 
 For the full wiring, see the EEE build guide.
 
@@ -43,7 +45,7 @@ Between those 10 ms ticks it checks the Serial Monitor for commands you've typed
 
 - If no pulse arrives for 100 ms, the speed is set to 0. Until then, the reading drops smoothly instead of freezing at the last value.
 
-> **Why this differs from the starter code:** the starter sketch did float maths inside the interrupt, and read that value without pausing interrupts. Very occasionally that produces a garbage reading. Here the interrupt does almost nothing, and the main loop copies its values safely.
+> **Why this differs from the starter code:** the starter sketch did float maths inside the interrupt, and read that value without pausing interrupts. Very occasionally that produces a garbage reading. Here the interrupt does almost nothing, and the main loop copies its values safely, using an ESP32 lock (`portENTER_CRITICAL`). The starter code's timer-register setup (`TCCR1A`) only works on the old Uno/Nano chips, so the PWM now uses the ESP32's LEDC hardware instead.
 
 ### 2. Working out the motor power (the controller)
 
@@ -112,9 +114,12 @@ These are at the top of the sketch.
 
 ## How to use it
 
-1. Open the sketch in the Arduino IDE. Choose the board (Arduino Uno, or Arduino Nano) and the port, then upload.
-   - On a Nano, if the upload fails, try Processor → "ATmega328P (Old Bootloader)".
-2. Open the Serial Monitor. Set it to **250000 baud** and line ending **Newline**.
+1. Open the sketch in the Arduino IDE.
+   - Install **"esp32 by Espressif Systems"** (version 3.x) in Boards Manager if you haven't.
+   - Choose Tools → Board → **Arduino Nano ESP32**, and leave Pin Numbering on **"By Arduino pin (default)"**.
+   - Choose the port and upload.
+   - If the upload doesn't start, double-tap the Nano's reset button and try again.
+2. Open the Serial Monitor. Set it to **115200 baud** and line ending **Newline**.
 3. Type commands:
 
 | Command | Does |
@@ -160,8 +165,9 @@ These are at the top of the sketch.
 |---|---|
 | `FAULT: stall` straight away | Motor not wired, MOSFET wrong way round, or the shaft is jammed |
 | RPM shows 0 but the shaft turns | Hall signal isn't reaching D2, or the sensor isn't powered |
+| Sketch won't compile: "targets the Arduino Nano ESP32" | Wrong board selected. Choose Arduino Nano ESP32 |
 | RPM jumps around a lot | Long or untwisted sensor wire. Ask EEE for the 4.7 kΩ pull-up and 1 nF filter |
 | Can't reach the setpoint | The motor's maximum is lower than the setpoint (check the sweep). The PWM will sit at 1023 |
 | Oscillates around the setpoint | `kp` or `ki` too high. Lower them |
 | Arduino resets when the motor starts | Motor drawing too much from USB. Check the 470 µF capacitor and the motor current |
-| Nothing in the Serial Monitor | Wrong baud rate. It must be 250000 |
+| Nothing in the Serial Monitor | Wrong baud rate. It must be 115200 |

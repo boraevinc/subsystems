@@ -12,9 +12,11 @@ It reads the pH probe, then adds small doses of acid or alkali with two pumps un
 
 | Pin | Connected to |
 |---|---|
-| A1 | pH board output (DFRobot SEN0161) |
+| A1 | pH board output (DFRobot SEN0161), **through a 4.7 kΩ / 10 kΩ divider** |
 | D5 | Acid pump MOSFET gate (pump A, on the 6 V output) |
 | D6 | Alkali pump MOSFET gate (pump B, on the 6 V output) |
+
+**Board:** Arduino Nano ESP32 (3.3 V logic, pins not 5 V tolerant). The pH board runs from 5 V (the Nano's VBUS pin) and can output up to about 4 V at high pH. The divider scales that down to a safe level for A1, and the sketch undoes it in software.
 
 For the full wiring, see the EEE build guide.
 
@@ -33,7 +35,7 @@ There are three timers, and none of them uses `delay()`:
 ### 1. Reading the pH
 
 1. **Take a robust average.** Sort the last 40 readings (0.8 s worth), throw away the 10 highest and 10 lowest, and average the rest. Spikes from the pumps switching don't affect it.
-2. **Convert the reading to volts:** `V = reading × 5 ÷ 1023`.
+2. **Convert to the board's output voltage.** Each reading is in millivolts at A1, from `analogReadMilliVolts()`, which uses the ESP32's factory ADC calibration. Dividing by the divider ratio (0.68) gives the voltage the pH board actually put out: `V = A1 mV ÷ 1000 ÷ 0.68`.
 3. **Convert volts to pH** with your calibration line: `pH = CAL_SLOPE × V + CAL_INTERCEPT`. Before you calibrate, the defaults are 3.5 and 0, which is the formula from DFRobot's sample code.
 4. **Optional temperature correction.** The probe's response changes slightly with temperature. Tell the sketch the liquid temperature with `t <°C>` and it corrects for it. In the combined sketch, the heating subsystem will supply this automatically.
 
@@ -71,7 +73,7 @@ Any of these stops the pumps and **latches** a fault until you clear it:
 
 | Fault | Trigger | Usually means |
 |---|---|---|
-| SENSOR | Probe voltage near 0 or 5 V, or pH outside 0–14 | Probe or board unplugged |
+| SENSOR | A1 below 30 mV or above 3000 mV, or pH outside 0–14 | Probe or board unplugged |
 | RUNAWAY | 15 doses in a row in the same direction without moving the pH by at least 0.1 | Empty reservoir, blocked tube, dead pump, or probe out of the liquid |
 
 - Clear a fault with `x` or a new `s`.
@@ -100,7 +102,7 @@ These are at the top of the sketch.
 
 | Constant | Default | What it is |
 |---|---|---|
-| `VREF` | 5.0 | Measure the Arduino 5V pin with a multimeter and put the real value here |
+| `PH_DIV_TOP`, `PH_DIV_BOTTOM` | 4700, 10000 | The divider resistors on A1. Set `PH_DIV_TOP` to 0 if no divider is fitted (only safe if the board can never output more than 3.3 V) |
 | `CAL_SLOPE`, `CAL_INTERCEPT` | 3.5, 0.0 | **Replace these with your calibration result** |
 | `FLOW_ML_PER_S` | 1.0 | Pump flow rate. **Measure it** (see below) |
 | `pumpPwm` | 200 | Pump running speed (0–255) |
@@ -114,7 +116,7 @@ These are at the top of the sketch.
 
 ## How to use it
 
-1. Upload the sketch. Open the Serial Monitor at **250000 baud**, line ending **Newline**.
+1. Upload the sketch with Tools → Board set to **Arduino Nano ESP32** (esp32 core 3.x, Pin Numbering "By Arduino pin"). Open the Serial Monitor at **115200 baud**, line ending **Newline**.
 2. Commands:
 
 | Command | Does |

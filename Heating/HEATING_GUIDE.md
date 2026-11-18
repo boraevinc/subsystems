@@ -12,8 +12,10 @@ It reads a thermistor to measure the temperature, and switches the heater on and
 
 | Pin | Connected to |
 |---|---|
-| A0 | Thermistor voltage divider (5V → 10 kΩ → A0 → thermistor → GND) |
-| D9 | Heater MOSFET gate (heater on the battery's 12 V output) |
+| A0 | Thermistor voltage divider (**3V3** → 10 kΩ → A0 → thermistor → GND) |
+| D9 | Heater MOSFET gate (1 kHz PWM; heater on the battery's 12 V output) |
+
+**Board:** Arduino Nano ESP32 (3.3 V logic). The MOSFET gate is driven at 3.3 V instead of 5 V. The IRLB8748 is designed to switch at low gate voltages, but check at bring-up that the drain drops close to 0 V when the heater is fully on. The PWM runs at 1 kHz to keep the MOSFET cool.
 
 For the full wiring, see the EEE build guide.
 
@@ -32,8 +34,10 @@ Water heats slowly, so deciding once a second is plenty.
 
 ### 1. Reading the temperature
 
-1. **Read A0 16 times and average.** This removes noise, much of it from the heater's PWM.
-2. **Convert the reading to the thermistor's resistance.** The divider gives a voltage that depends on that resistance. Because it's a ratio of the 5 V supply, the exact supply voltage doesn't matter.
+1. **Read A0 32 times in millivolts and average.** `analogReadMilliVolts()` uses the ESP32's factory ADC calibration. Averaging removes noise, much of it from the heater's PWM.
+2. **Convert the voltage to the thermistor's resistance:** `R = 10 kΩ × V ÷ (3300 mV − V)`. The 3300 is `VCC_MV`, the Nano's 3V3 pin. Measure that pin once with a multimeter and put in the real value.
+
+   The divider **must** run from 3V3, not 5 V: the Nano ESP32's analog inputs only accept 0–3.3 V.
 3. **Convert resistance to temperature** with the Beta equation:
 
    `1/T = 1/298.15 + ln(R / 10000) / 4220`   (T in kelvin)
@@ -44,7 +48,16 @@ Water heats slowly, so deciding once a second is plenty.
 
 The thermistor's resistance is only ±10% accurate, so **calibrating against a real thermometer is essential**. See "How to test" below.
 
-Resolution is about 0.09 °C per ADC step, so no op-amp is needed for the ±0.5 °C spec.
+Near 30 °C the divider changes by about 37 mV per °C, and the ADC resolves about 1 mV, so no op-amp is needed for the ±0.5 °C spec.
+
+| Water temperature | Expected voltage at A0 |
+|---|---|
+| 10 °C | 2.24 V |
+| 20 °C | 1.85 V |
+| 25 °C | 1.65 V |
+| 30 °C | 1.46 V |
+| 35 °C | 1.28 V |
+| 40 °C | 1.11 V |
 
 ### 2. Working out the heater power
 
@@ -76,7 +89,7 @@ Any of these turns the heater **off** and **latches** a fault, so it stays off u
 
 | Fault | Trigger | Usually means |
 |---|---|---|
-| SENSOR | ADC near 0 or 1023 | Thermistor unplugged or shorted |
+| SENSOR | A0 below 50 mV or above 3000 mV | Thermistor unplugged or shorted |
 | OVER-TEMPERATURE | Above 40 °C | Something has gone wrong; let it cool below 38 °C |
 | NO TEMPERATURE RISE | Heater near full power for 5 minutes but less than 0.5 °C rise | Thermistor out of the water, heater not connected, or MOSFET dead |
 
@@ -85,7 +98,7 @@ Any of these turns the heater **off** and **latches** a fault, so it stays off u
 
 ### 4. Logging and statistics
 
-- `l 1` prints CSV once a second: `t_ms,mode,setpoint,temp,temp_uncal,adc,power_W,duty,err,integ_W`.
+- `l 1` prints CSV once a second: `t_ms,mode,setpoint,temp,temp_uncal,mV,power_W,duty,err,integ_W` (`mV` is the voltage at A0).
 - `l 2` prints in Serial Plotter format: the setpoint, ±0.5 °C lines around it, the temperature, and the power.
 - `?` shows:
   - mode, temperature, power and gains
@@ -107,6 +120,7 @@ These are at the top of the sketch.
 | Constant | Default | What it is |
 |---|---|---|
 | `THERM_ON_TOP` | false | Set to true if the divider is wired the other way round |
+| `VCC_MV` | 3300 | Voltage of the Nano's 3V3 pin in mV. Measure it and update |
 | `R_FIXED` | 10000 | Divider resistor in ohms |
 | `BETA` | 4220 | Thermistor B value |
 | `CAL_GAIN`, `CAL_OFFSET` | 1.0, 0.0 | **Replace these with your calibration result** |
@@ -121,7 +135,7 @@ These are at the top of the sketch.
 
 ## How to use it
 
-1. Upload the sketch. Open the Serial Monitor at **250000 baud**, line ending **Newline**.
+1. Upload the sketch with Tools → Board set to **Arduino Nano ESP32** (esp32 core 3.x, Pin Numbering "By Arduino pin"). Open the Serial Monitor at **115200 baud**, line ending **Newline**.
 2. Commands:
 
 | Command | Does |
@@ -146,6 +160,7 @@ These are at the top of the sketch.
 
 1. **Check the sensor with the heater unplugged.** Send `?`. The temperature should be near room temperature.
    - If it's wildly wrong (say −20 °C or 90 °C), the divider is wired the other way round. Set `THERM_ON_TOP = true`.
+   - `?` also shows the A0 voltage. Compare it with the table under "Reading the temperature".
 2. **Calibrate.**
    1. Put the thermistor and a lab thermometer side by side in room-temperature water and stir. Wait 1 minute, then send `cal1 <thermometer reading>`.
    2. Do the same in warm water (about 35–40 °C) and send `cal2 <reading>`.

@@ -2,14 +2,21 @@
   stirring_control.ino
   Bioreactor - stirring subsystem: closed-loop speed control
 
-  Board : Arduino Uno / Nano (ATmega328P, 16 MHz)
+  Board : Arduino Nano ESP32 (ESP32-S3, 3.3 V logic). WiFi is NOT used: the
+          separate Espressif ESP32 does networking over a wired UART link.
+          Arduino IDE: Boards Manager "esp32 by Espressif Systems" 3.x,
+          board "Arduino Nano ESP32", Pin Numbering "By Arduino pin (default)".
   Spec  : hold stirring speed at a setpoint in 500-1500 RPM, within +/-20 RPM.
           Setpoint must be adjustable on the fly (here: Serial Monitor commands;
           later: the ESP32 link calls setStirSetpoint()).
 
   Hardware (from MotorHallSensorInstructions.pptx):
-    - 5 V DC motor, 10:1 gearbox, powered from the Arduino 5 V pin (NOT external).
+    - 5 V DC motor, 10:1 gearbox, powered from the Nano's VBUS pin (USB 5 V),
+      NOT an external supply.
     - Hall sensor, 70 pulses per rev of the output shaft -> D2 (interrupt).
+      The Nano ESP32 pins are NOT 5 V tolerant: the sensor output must only
+      ever be pulled up to 3.3 V (or go through a 4.7k/10k divider if it
+      drives 5 V itself). See the EEE build guide.
     - Logic-level N-MOSFET (IRLB8748) low-side switch, gate on D10,
       1N4001 flyback diode across the motor, 470 uF decoupling on 5 V.
 
@@ -29,7 +36,7 @@
     shared float without disabling interrupts, which can give corrupt readings.)
 
   ---------------------------------------------------------------------------
-  Serial Monitor: 250000 baud, line ending "Newline"
+  Serial Monitor: 115200 baud, line ending "Newline"
     s <rpm>      closed-loop setpoint (0 = stop, else 500-1500)
     m <pwm>      manual open-loop PWM, 0-1023 (PI off)
     w            open-loop sweep: steps PWM 0->1023, prints RPM at each step
@@ -54,10 +61,39 @@
     6. Check the reading against the tachometer at a few setpoints.
 */
 
+#if !defined(ARDUINO_ARCH_ESP32)
+#error "This sketch targets the Arduino Nano ESP32. Select it under Tools > Board."
+#endif
+
 // ============================ Pins ============================
-const byte PIN_HALL  = 2;    // Hall sensor (must be D2 or D3 on Uno/Nano)
-const byte PIN_MOTOR = 10;   // MOSFET gate, Timer1 (OC1B)
-const byte PIN_LED   = 13;   // blinks once per output-shaft revolution
+const uint8_t PIN_HALL  = D2;           // Hall sensor (any Nano ESP32 pin can interrupt)
+const uint8_t PIN_MOTOR = D10;          // MOSFET gate, LEDC PWM
+const uint8_t PIN_LED   = LED_BUILTIN;  // D13, blinks once per output-shaft revolution
+
+// ============================ PWM (LEDC) ============================
+const uint32_t MOTOR_PWM_HZ   = 8000;   // 8 kHz, 10-bit like the original starter code
+const uint8_t  MOTOR_PWM_BITS = 10;
+const uint8_t  MOTOR_PWM_CH   = 0;      // only used by esp32 core 2.x
+
+void pwmBegin(uint8_t pin, uint8_t ch, uint32_t hz, uint8_t bits) {
+#if ESP_ARDUINO_VERSION_MAJOR >= 3
+  ledcAttach(pin, hz, bits);
+  (void)ch;
+#else
+  ledcSetup(ch, hz, bits);
+  ledcAttachPin(pin, ch);
+#endif
+}
+
+void pwmWrite(uint8_t pin, uint8_t ch, uint32_t duty) {
+#if ESP_ARDUINO_VERSION_MAJOR >= 3
+  ledcWrite(pin, duty);
+  (void)ch;
+#else
+  ledcWrite(ch, duty);
+  (void)pin;
+#endif
+}
 
 // ============================ Sensor ============================
 const float PULSES_PER_REV = 70.0;
@@ -102,7 +138,8 @@ Mode mode = MODE_OFF;
 
 volatile unsigned long isrCount  = 0;
 volatile unsigned long isrLastUs = 0;
-volatile byte ledDiv = 0;
+portMUX_TYPE isrMux = portMUX_INITIALIZER_UNLOCKED;  // protects isrCount/isrLastUs
+unsigned long ledPulses = 0;
 
 unsigned long prevCount = 0, prevPulseUs = 0, nextTickUs = 0;
 float rpm = 0, rpmSmooth = 0;
@@ -129,27 +166,33 @@ char cmdBuf[32];
 byte cmdLen = 0;
 
 // ============================ ISR ============================
-void hallISR() {
+// Kept in IRAM and as short as possible; the LED is driven from the loop.
+void IRAM_ATTR hallISR() {
   unsigned long now = micros();
-  if (now - isrLastUs < TMIN_US) return;   // reject noise / impossible speeds
-  isrLastUs = now;
-  isrCount++;
-  if (++ledDiv >= LED_TOGGLE_PULSES) {
-    ledDiv = 0;
-    digitalWrite(PIN_LED, !digitalRead(PIN_LED));
+  portENTER_CRITICAL_ISR(&isrMux);
+  if (now - isrLastUs >= TMIN_US) {        // reject noise / impossible speeds
+    isrLastUs = now;
+    isrCount = isrCount + 1;
   }
+  portEXIT_CRITICAL_ISR(&isrMux);
 }
 
 // ============================ Speed ============================
 void measureSpeed() {
-  noInterrupts();
+  portENTER_CRITICAL(&isrMux);
   unsigned long c = isrCount;
   unsigned long t = isrLastUs;
-  interrupts();
+  portEXIT_CRITICAL(&isrMux);
   unsigned long nowUs = micros();
 
   unsigned long dc = c - prevCount;
   if (dc > 0) {
+    // blink: toggle twice per revolution = one blink per turn
+    ledPulses += dc;
+    while (ledPulses >= LED_TOGGLE_PULSES) {
+      ledPulses -= LED_TOGGLE_PULSES;
+      digitalWrite(PIN_LED, !digitalRead(PIN_LED));
+    }
     unsigned long dt = t - prevPulseUs;
     // dt > timeout means we are starting from rest: the first pulse has no
     // valid previous edge, so skip this one estimate.
@@ -172,8 +215,7 @@ void measureSpeed() {
 // ============================ Actuator ============================
 void writeMotor(int v) {
   v = constrain(v, 0, PWM_MAX);
-  if (v == 255) v = 256;  // analogWrite treats 255 as "fully on" even in 10-bit mode
-  analogWrite(PIN_MOTOR, v);
+  pwmWrite(PIN_MOTOR, MOTOR_PWM_CH, (uint32_t)v);
 }
 
 float feedforward(float r) {
@@ -462,19 +504,17 @@ void pollSerial() {
 
 // ============================ Setup / loop ============================
 void setup() {
-  pinMode(PIN_HALL, INPUT_PULLUP);
-  pinMode(PIN_MOTOR, OUTPUT);
+  pinMode(PIN_HALL, INPUT_PULLUP);   // internal pull-up goes to 3.3 V
   pinMode(PIN_LED, OUTPUT);
+  pinMode(PIN_MOTOR, OUTPUT);
   digitalWrite(PIN_MOTOR, LOW);
 
-  // Timer1 (D9, D10): 10-bit phase-correct PWM, no prescaler -> ~7.8 kHz.
-  // Leave Timer0 alone: millis()/micros() depend on it.
-  TCCR1A = _BV(WGM11) | _BV(WGM10);
-  TCCR1B = _BV(CS10);
+  // 10-bit PWM at 8 kHz on the motor pin: 0-1023 = 0-100 % of the 5 V supply.
+  pwmBegin(PIN_MOTOR, MOTOR_PWM_CH, MOTOR_PWM_HZ, MOTOR_PWM_BITS);
   writeMotor(0);
 
   attachInterrupt(digitalPinToInterrupt(PIN_HALL), hallISR, RISING);
-  Serial.begin(250000);
+  Serial.begin(115200);
   Serial.println(F("# Bioreactor stirring controller ready."));
   printHelp();
 

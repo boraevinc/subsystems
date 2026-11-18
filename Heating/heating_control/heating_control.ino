@@ -2,7 +2,10 @@
   heating_control.ino
   Bioreactor - heating subsystem: closed-loop temperature control
 
-  Board : Arduino Uno / Nano (ATmega328P, 16 MHz)
+  Board : Arduino Nano ESP32 (ESP32-S3, 3.3 V logic). WiFi is NOT used: the
+          separate Espressif ESP32 does networking over a wired UART link.
+          Arduino IDE: Boards Manager "esp32 by Espressif Systems" 3.x,
+          board "Arduino Nano ESP32", Pin Numbering "By Arduino pin (default)".
   Spec  : hold temperature at a setpoint in 25-35 C, within +/-0.5 C.
           Inlet water 10-20 C. Setpoint adjustable on the fly (Serial Monitor
           now; the ESP32 link calls setHeatSetpoint() later).
@@ -10,13 +13,19 @@
   Hardware:
     - Thermistor: ND06P00103K, 10k NTC, B25/85 = 4220 K (+/-3%), R25 +/-10%
       (the 10% tolerance is why the 2-point calibration below matters).
-      Voltage divider:  5V --- R_FIXED (10k) ---+--- NTC --- GND
+      Voltage divider: 3V3 --- R_FIXED (10k) ---+--- NTC --- GND
                                                  |
-                                                 A0   (optional 0.1-1 uF to GND
-                                                       to filter heater PWM noise)
-      If the EEE side wires it the other way round, set THERM_ON_TOP = true.
-      Ratiometric: the result doesn't depend on the exact 5 V value.
+                                                 A0   (0.1 uF to GND filters
+                                                       heater PWM noise)
+      POWER THE DIVIDER FROM THE 3V3 PIN, NOT 5 V: the Nano ESP32's analog
+      inputs only accept 0-3.3 V. If the EEE side wires it the other way
+      round, set THERM_ON_TOP = true. Readings use analogReadMilliVolts(),
+      which applies the chip's factory ADC calibration; measure the 3V3 pin
+      and put the value in VCC_MV.
     - Heater: 3 ohm, 30 W element, low-side IRLB8748 MOSFET, gate on D9.
+      The gate is driven at 3.3 V; the IRLB8748 is a logic-level part but
+      check at bring-up that the drain drops below ~0.1 V when fully on.
+      PWM is 1 kHz to keep switching losses low with the weaker gate drive.
       At 12 V it would draw 4 A = 48 W, OVER its 30 W rating, so power is
       capped at P_MAX (28 W, ~58% duty). If you run it from the 6 V rail,
       change HEATER_V to 6.0 (then 12 W max).
@@ -41,7 +50,7 @@
     The heater starts OFF at power-up; send "s 30" to start.
 
   ---------------------------------------------------------------------------
-  Serial Monitor: 250000 baud, line ending "Newline"
+  Serial Monitor: 115200 baud, line ending "Newline"
     s <C>         PI control to setpoint (25-35 C), 0 = heater off
     b <C>         bang-bang control to setpoint (25-35 C)
     h <C>         bang-bang hysteresis (default 0.2 C)
@@ -72,19 +81,29 @@
     4. Copy final Kp, Ki into the defaults below.
 */
 
+#if !defined(ARDUINO_ARCH_ESP32)
+#error "This sketch targets the Arduino Nano ESP32. Select it under Tools > Board."
+#endif
+
 // ============================ Pins ============================
-const byte PIN_THERM  = A0;
-const byte PIN_HEATER = 9;    // Timer1 (OC1A), same timer setup as the stirrer on D10
+const uint8_t PIN_THERM  = A0;    // ADC1 channel, safe to use
+const uint8_t PIN_HEATER = D9;    // LEDC PWM
+
+// ============================ PWM (LEDC) ============================
+const uint32_t HEATER_PWM_HZ   = 1000;
+const uint8_t  HEATER_PWM_BITS = 10;
+const uint8_t  HEATER_PWM_CH   = 1;    // only used by esp32 core 2.x
 
 // ============================ Thermistor ============================
 const bool  THERM_ON_TOP = false;   // false: NTC between A0 and GND
+const float VCC_MV  = 3300.0;       // divider supply = Nano 3V3 pin; measure and update
 const float R_FIXED = 10000.0;      // divider resistor, ohms
 const float R25     = 10000.0;      // NTC resistance at 25 C
 const float BETA    = 4220.0;       // B25/85 from the ND06 series listing
 const float T25_K   = 298.15;
-const byte  ADC_SAMPLES = 16;       // oversampling per reading
-const int   ADC_FAULT_LOW  = 15;    // below: thermistor shorted (or divider swapped)
-const int   ADC_FAULT_HIGH = 1008;  // above: thermistor open / unplugged
+const uint8_t ADC_SAMPLES = 32;     // oversampling per reading (ESP32 ADC is noisier)
+const float MV_FAULT_LOW  = 50.0;   // below: thermistor shorted (or divider swapped)
+const float MV_FAULT_HIGH = 3000.0; // above: thermistor open / unplugged
 const float TEMP_FILTER = 0.2;      // EMA weight per 100 ms sample
 
 float CAL_GAIN   = 1.0;             // T = CAL_GAIN * T_beta + CAL_OFFSET
@@ -95,7 +114,7 @@ const float HEATER_V = 12.0;
 const float HEATER_R = 3.0;
 const float P_FULL   = HEATER_V * HEATER_V / HEATER_R;  // 48 W at 12 V
 const float P_RATED  = 30.0;
-const float P_MAX    = min(28.0, P_FULL);               // stay under the rating
+const float P_MAX    = (P_FULL < 28.0f) ? P_FULL : 28.0f;  // stay under the rating
 const int   PWM_MAX  = 1023;
 
 // ============================ Control ============================
@@ -126,7 +145,7 @@ enum Fault : byte { F_NONE, F_SENSOR, F_OVERTEMP, F_NORISE };
 Mode  mode  = MODE_OFF;
 Fault fault = F_NONE;
 
-float adcAvg = 0, tempRaw = 0, temp = 0;
+float mvAvg = 0, tempRaw = 0, temp = 0;   // mvAvg = divider voltage in millivolts
 bool  tempValid = false;   // at least one good reading since power-up
 bool  sensorOk  = false;   // latest reading was in range
 float setpoint = 0, integ = 0, err = 0, power = 0, manualPower = 0;
@@ -156,17 +175,40 @@ byte logMode = 0;
 char cmdBuf[32];
 byte cmdLen = 0;
 
+// ============================ PWM helpers ============================
+// (Defined after the enums: the Arduino IDE inserts function prototypes
+// above the first function, so types used in signatures must come first.)
+void pwmBegin(uint8_t pin, uint8_t ch, uint32_t hz, uint8_t bits) {
+#if ESP_ARDUINO_VERSION_MAJOR >= 3
+  ledcAttach(pin, hz, bits);
+  (void)ch;
+#else
+  ledcSetup(ch, hz, bits);
+  ledcAttachPin(pin, ch);
+#endif
+}
+
+void pwmWrite(uint8_t pin, uint8_t ch, uint32_t duty) {
+#if ESP_ARDUINO_VERSION_MAJOR >= 3
+  ledcWrite(pin, duty);
+  (void)ch;
+#else
+  ledcWrite(ch, duty);
+  (void)pin;
+#endif
+}
+
 // ============================ Temperature ============================
 // Returns false on a sensor fault.
 bool readTemperature() {
-  unsigned int sum = 0;
-  for (byte i = 0; i < ADC_SAMPLES; i++) sum += analogRead(PIN_THERM);
-  adcAvg = (float)sum / ADC_SAMPLES;
+  uint32_t sum = 0;
+  for (uint8_t i = 0; i < ADC_SAMPLES; i++) sum += analogReadMilliVolts(PIN_THERM);
+  mvAvg = (float)sum / ADC_SAMPLES;
 
-  if (adcAvg < ADC_FAULT_LOW || adcAvg > ADC_FAULT_HIGH) return false;
+  if (mvAvg < MV_FAULT_LOW || mvAvg > MV_FAULT_HIGH) return false;
 
-  float rNtc = THERM_ON_TOP ? R_FIXED * (1023.0 - adcAvg) / adcAvg
-                            : R_FIXED * adcAvg / (1023.0 - adcAvg);
+  float rNtc = THERM_ON_TOP ? R_FIXED * (VCC_MV - mvAvg) / mvAvg
+                            : R_FIXED * mvAvg / (VCC_MV - mvAvg);
   float invT = 1.0 / T25_K + log(rNtc / R25) / BETA;
   float tBeta = 1.0 / invT - 273.15;
 
@@ -181,8 +223,7 @@ void writeHeater(float watts) {
   watts = constrain(watts, 0, P_MAX);
   int v = (int)(watts / P_FULL * PWM_MAX + 0.5);
   v = constrain(v, 0, PWM_MAX);
-  if (v == 255) v = 256;  // analogWrite treats 255 as "fully on" even in 10-bit mode
-  analogWrite(PIN_HEATER, v);
+  pwmWrite(PIN_HEATER, HEATER_PWM_CH, (uint32_t)v);
 }
 
 // ============================ Faults ============================
@@ -335,7 +376,7 @@ void updateWindow() {
 }
 
 void printCsvHeader() {
-  Serial.println(F("t_ms,mode,setpoint,temp,temp_uncal,adc,power_W,duty,err,integ_W"));
+  Serial.println(F("t_ms,mode,setpoint,temp,temp_uncal,mV,power_W,duty,err,integ_W"));
 }
 
 void logLine() {
@@ -345,7 +386,7 @@ void logLine() {
     Serial.print(setpoint, 1);             Serial.print(',');
     Serial.print(temp, 2);                 Serial.print(',');
     Serial.print(tempRaw, 2);              Serial.print(',');
-    Serial.print(adcAvg, 1);               Serial.print(',');
+    Serial.print(mvAvg, 0);                Serial.print(',');
     Serial.print(power, 2);                Serial.print(',');
     Serial.print(power / P_FULL, 3);       Serial.print(',');
     Serial.print(err, 2);                  Serial.print(',');
@@ -376,7 +417,7 @@ void printStatus() {
   Serial.print(F(" temp="));      Serial.print(temp, 2);
   Serial.print(F(" power="));     Serial.print(power, 1);
   Serial.print(F("W integ="));    Serial.print(integ, 2);
-  Serial.print(F("W adc="));      Serial.println(adcAvg, 1);
+  Serial.print(F("W A0="));       Serial.print(mvAvg, 0); Serial.println(F("mV"));
   if (mode == MODE_FAULT) { Serial.print(F("# fault: ")); Serial.println(faultName(fault)); }
   Serial.print(F("# Kp="));       Serial.print(Kp, 3);
   Serial.print(F(" Ki="));        Serial.print(Ki, 4);
@@ -494,13 +535,11 @@ void setup() {
   pinMode(PIN_HEATER, OUTPUT);
   digitalWrite(PIN_HEATER, LOW);
 
-  // Timer1 (D9, D10): 10-bit phase-correct PWM, no prescaler -> ~7.8 kHz.
-  // Same as the stirring sketch, so both can share it when merged.
-  TCCR1A = _BV(WGM11) | _BV(WGM10);
-  TCCR1B = _BV(CS10);
+  // 10-bit PWM at 1 kHz on the heater pin.
+  pwmBegin(PIN_HEATER, HEATER_PWM_CH, HEATER_PWM_HZ, HEATER_PWM_BITS);
   writeHeater(0);
 
-  Serial.begin(250000);
+  Serial.begin(115200);
   Serial.println(F("# Bioreactor heating controller ready. Heater is OFF."));
   printHelp();
 

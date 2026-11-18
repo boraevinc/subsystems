@@ -2,19 +2,30 @@
   ph_control.ino
   Bioreactor - pH subsystem: closed-loop pH control by acid/alkali dosing
 
-  Board : Arduino Uno / Nano (ATmega328P, 16 MHz)
+  Board : Arduino Nano ESP32 (ESP32-S3, 3.3 V logic). WiFi is NOT used: the
+          separate Espressif ESP32 does networking over a wired UART link.
+          Arduino IDE: Boards Manager "esp32 by Espressif Systems" 3.x,
+          board "Arduino Nano ESP32", Pin Numbering "By Arduino pin (default)".
   Spec  : hold pH at a setpoint in 3-7 (default 5). Setpoint adjustable on
           the fly (Serial Monitor now; the ESP32 link calls setPHSetpoint()).
 
   Hardware:
-    - PH-100ATC probe + DFRobot SEN0161 board (5V, GND, analog out) -> A1.
-      Board output is roughly linear in pH (DFRobot sample code uses
-      pH = 3.5 * V + offset); the real line comes from buffer calibration.
+    - PH-100ATC probe + DFRobot SEN0161 board (powered from VBUS 5 V, GND,
+      analog out). Board output is roughly linear in pH (DFRobot sample code
+      uses pH = 3.5 * V + offset); the real line comes from calibration.
+      The board can output up to ~4 V at high pH but the Nano ESP32's analog
+      inputs only accept 0-3.3 V, so its output goes to A1 through a divider:
+        SEN0161 out --- 4.7k ---+--- A1
+                                |
+                               10k --- GND        (ratio 0.68)
+      The sketch undoes the divider (PH_DIV_TOP / PH_DIV_BOTTOM), so the
+      calibration constants are in board volts. Set PH_DIV_TOP = 0 if no
+      divider is fitted. Readings use analogReadMilliVolts() (factory ADC
+      calibration), so no VREF constant is needed.
     - Two 6 V / 1 A peristaltic pumps, each on a logic-level N-MOSFET
       (IRLB8748) with a 1N4001 flyback diode, powered from the 6 V rail:
         acid pump   -> D5     alkali pump -> D6
-      D5/D6 use Timer0 at ~980 Hz via analogWrite (0-255). Timer0 is left
-      untouched because millis() depends on it.
+      8-bit LEDC PWM at 1 kHz (0-255), gates driven at 3.3 V.
 
   Why "dose and wait" rather than PI:
     pH reacts to a dose only after the liquid has mixed (seconds of dead
@@ -47,7 +58,7 @@
     the heating subsystem's reading feeds it). Calibrate at a known tempC.
 
   ---------------------------------------------------------------------------
-  Serial Monitor: 250000 baud, line ending "Newline"
+  Serial Monitor: 115200 baud, line ending "Newline"
     s <pH>       automatic control to setpoint (3-7), 0 = stop dosing
     db <pH>      deadband (no dosing within +/- this)
     rb <pH>      reverse band (error needed to switch reagent)
@@ -80,18 +91,30 @@
        started: raise mix.
 */
 
+#if !defined(ARDUINO_ARCH_ESP32)
+#error "This sketch targets the Arduino Nano ESP32. Select it under Tools > Board."
+#endif
+
 // ============================ Pins ============================
-const byte PIN_PH    = A1;
-const byte PIN_ACID  = 5;
-const byte PIN_BASE  = 6;
+const uint8_t PIN_PH    = A1;     // ADC1 channel, through the 4.7k/10k divider
+const uint8_t PIN_ACID  = D5;
+const uint8_t PIN_BASE  = D6;
+
+// ============================ PWM (LEDC) ============================
+const uint32_t PUMP_PWM_HZ   = 1000;
+const uint8_t  PUMP_PWM_BITS = 8;     // 0-255
+const uint8_t  ACID_PWM_CH   = 2;     // channels only used by esp32 core 2.x
+const uint8_t  BASE_PWM_CH   = 3;
 
 // ============================ Sensor ============================
-const float VREF = 5.0;                // measure the 5V pin with a multimeter and put it here
+const float PH_DIV_TOP    = 4700.0;   // divider resistor from board output to A1 (0 = none)
+const float PH_DIV_BOTTOM = 10000.0;  // divider resistor from A1 to GND
+const float PH_DIV = PH_DIV_BOTTOM / (PH_DIV_TOP + PH_DIV_BOTTOM);  // 0.68
 const byte  PH_SAMPLES = 40;           // ring buffer, one sample every 20 ms = 0.8 s
 const byte  PH_TRIM = 10;              // drop 10 lowest and 10 highest
 const unsigned long SAMPLE_MS = 20;
-const float V_FAULT_LOW  = 0.05;
-const float V_FAULT_HIGH = 4.95;
+const float MV_FAULT_LOW  = 30.0;      // at the A1 pin: board unpowered / output shorted
+const float MV_FAULT_HIGH = 3000.0;    // at the A1 pin: near the ADC's top end (board ~4.4 V, off the pH scale)
 
 float CAL_SLOPE     = 3.5;             // pH per volt      (from calibration)
 float CAL_INTERCEPT = 0.0;             // pH at 0 V        (from calibration)
@@ -172,13 +195,39 @@ byte logMode = 0;
 char cmdBuf[32];
 byte cmdLen = 0;
 
+// ============================ PWM helpers ============================
+// (Defined after the enums: the Arduino IDE inserts function prototypes
+// above the first function, so types used in signatures must come first.)
+void pwmBegin(uint8_t pin, uint8_t ch, uint32_t hz, uint8_t bits) {
+#if ESP_ARDUINO_VERSION_MAJOR >= 3
+  ledcAttach(pin, hz, bits);
+  (void)ch;
+#else
+  ledcSetup(ch, hz, bits);
+  ledcAttachPin(pin, ch);
+#endif
+}
+
+void pwmWrite(uint8_t pin, uint8_t ch, uint32_t duty) {
+#if ESP_ARDUINO_VERSION_MAJOR >= 3
+  ledcWrite(pin, duty);
+  (void)ch;
+#else
+  ledcWrite(ch, duty);
+  (void)pin;
+#endif
+}
+
+void acidWrite(int duty) { pwmWrite(PIN_ACID, ACID_PWM_CH, (uint32_t)constrain(duty, 0, 255)); }
+void baseWrite(int duty) { pwmWrite(PIN_BASE, BASE_PWM_CH, (uint32_t)constrain(duty, 0, 255)); }
+
 // ============================ Interlock hook ============================
 // In the merged sketch, return true only when the stirrer is at speed.
 bool stirringRunning() { return true; }
 
 // ============================ Sensor ============================
 void sampleADC() {
-  phRing[ringIdx] = analogRead(PIN_PH);
+  phRing[ringIdx] = analogReadMilliVolts(PIN_PH);   // millivolts at the A1 pin
   ringIdx = (ringIdx + 1) % PH_SAMPLES;
   if (ringFill < PH_SAMPLES) ringFill++;
 }
@@ -205,10 +254,14 @@ float voltsToPH(float v) {
   return 7.0 + (phLin - 7.0) * (CAL_TEMP_C + 273.15) / (tempC + 273.15);
 }
 
+// Pin millivolts -> volts at the SEN0161 output (undoes the divider).
+float boardVolts(float pinMv) { return pinMv / 1000.0 / PH_DIV; }
+
 bool updatePH() {
   if (ringFill < 4) return false;
-  phVolts = trimmedMeanADC() * VREF / 1023.0;
-  if (phVolts < V_FAULT_LOW || phVolts > V_FAULT_HIGH) return false;
+  float pinMv = trimmedMeanADC();
+  if (pinMv < MV_FAULT_LOW || pinMv > MV_FAULT_HIGH) return false;
+  phVolts = boardVolts(pinMv);
   float p = voltsToPH(phVolts);
   if (p < 0 || p > 14) return false;
   ph = p;
@@ -216,11 +269,10 @@ bool updatePH() {
 }
 
 // ============================ Pumps ============================
-byte pinFor(Pump p) { return (p == PUMP_ACID) ? PIN_ACID : PIN_BASE; }
 
 void allPumpsOff() {
-  analogWrite(PIN_ACID, 0);
-  analogWrite(PIN_BASE, 0);
+  acidWrite(0);
+  baseWrite(0);
   if (activePump != PUMP_NONE) {
     unsigned long ran = millis() - doseStartMs;
     if (activePump == PUMP_ACID) acidMsTotal += ran; else baseMsTotal += ran;
@@ -255,8 +307,8 @@ void pumpTick() {
     pumpOut = min(pumpOut + step, (int)pumpPwm);
   }
   // Interlock: the other pump is always forced off.
-  analogWrite(activePump == PUMP_ACID ? PIN_BASE : PIN_ACID, 0);
-  analogWrite(pinFor(activePump), pumpOut);
+  if (activePump == PUMP_ACID) { baseWrite(0); acidWrite(pumpOut); }
+  else                         { acidWrite(0); baseWrite(pumpOut); }
 }
 
 // ============================ Faults ============================
@@ -371,7 +423,7 @@ void printCal() {
 
 void addCalPoint(float bufferPH) {
   if (ringFill < PH_SAMPLES) { Serial.println(F("# wait for readings to fill")); return; }
-  float v = trimmedMeanADC() * VREF / 1023.0;
+  float v = boardVolts(trimmedMeanADC());
   if (calN >= MAX_CAL_POINTS) calN = 0;   // start over after 3
   calV[calN] = v; calPH[calN] = bufferPH; calN++;
   Serial.print(F("# cal point ")); Serial.print(calN);
@@ -554,9 +606,13 @@ void pollSerial() {
 void setup() {
   pinMode(PIN_ACID, OUTPUT);
   pinMode(PIN_BASE, OUTPUT);
+  digitalWrite(PIN_ACID, LOW);
+  digitalWrite(PIN_BASE, LOW);
+  pwmBegin(PIN_ACID, ACID_PWM_CH, PUMP_PWM_HZ, PUMP_PWM_BITS);
+  pwmBegin(PIN_BASE, BASE_PWM_CH, PUMP_PWM_HZ, PUMP_PWM_BITS);
   allPumpsOff();
 
-  Serial.begin(250000);
+  Serial.begin(115200);
   Serial.println(F("# Bioreactor pH controller ready. Pumps are OFF (monitor only)."));
   printHelp();
 
