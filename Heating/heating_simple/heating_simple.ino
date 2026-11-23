@@ -1,22 +1,8 @@
 /*
-  heating_simple.ino  -  Bioreactor temperature control, simple version
-  (the original is kept unchanged in ../heating_control)
-
-  Board: Arduino Nano ESP32, esp32 core 3.x, Pin Numbering "By Arduino pin".
-  Spec : hold 25-35 C within +/-0.5 C.
-
   WIRING
-    A0 <- thermistor divider (powered from 3V3, NOT 5 V):
-            3V3 --[10k]--+-- A0      (0.1 uF from A0 to GND)
-                         |
-                    thermistor (10k NTC)
-                         |
-                        GND
-    D9 -> heater MOSFET gate (100R in series, 10k gate to GND)
-           +12 V --[5 A fuse]-- heater (3 ohm) -- MOSFET drain, source -> GND
-    Thick wire on screw terminals for the heater loop.
-    ONLY POWER THE HEATER WHEN IT IS UNDER WATER.
-
+    A0 <- thermistor divider 
+    D9 -> heater MOSFET gate
+    
   HOW IT WORKS (every second)
     1. Read the temperature.
     2. PI control: power = Kp*error + (integral of Ki*error)
@@ -26,12 +12,8 @@
     3. Heater power is capped at MAX_WATTS, because 12 V across 3 ohm would
        be 48 W and the element is only rated 30 W.
     Safety: the heater turns off if
-      - the thermistor reading is impossible (wire off or shorted),
-      - the water goes above MAX_TEMP, or
-      - while warming up, 10 min of heating raised the water by less than
-        20% of what that much energy should (heater out of the water,
-        thermistor out of the water, or MOSFET dead). This uses
-        VESSEL_LITRES, so set it to your real volume.
+      - the thermistor reading is impossible (wire off or shorted), or
+      - the water goes above MAX_TEMP.
 
   SERIAL MONITOR (115200 baud, "Newline")
     s 30     hold 30 C (allowed 25-35)
@@ -85,8 +67,7 @@ const float FULL_WATTS   = HEATER_VOLTS * HEATER_VOLTS / HEATER_OHMS;   // 48 W
 const float MAX_WATTS    = 28.0;    // stay under the 30 W rating
 
 // ---------- Vessel constants (MEASURE these, see MEASURING above) ----------
-const float VESSEL_LITRES = 1.0;    // water in the vessel. If unsure, round UP:
-                                    // too small a number causes false shut-offs.
+const float VESSEL_LITRES = 1.0;    // water in the vessel
 const float H_LOSS = 0.5;           // heat loss to the room, watts per C above room temp
 
 // ---------- Design choices (Control lecture, slides 45-48) ----------
@@ -107,11 +88,6 @@ const float I_BAND = 2.0;           // only build up the integral within 2 C
 
 // ---------- Safety ----------
 const float MAX_TEMP = 40.0;                  // C
-// Heating check: every 10 min of warming up, the water must rise by at least
-// 20% of what the heater's energy should give it (energy = mass x 4180 x rise).
-// Less than that means the heat isn't reaching the water.
-const unsigned long CHECK_MS = 600000;        // 10 minutes
-const float MIN_FRACTION = 0.2;
 
 // ---------- State ----------
 float setpoint = 0;          // 0 = not controlling
@@ -119,9 +95,6 @@ float fixedWatts = 0;        // used by the "p" test command
 float integral = 0;          // watts, built up by the I part
 float watts = 0;             // what the heater is getting now
 unsigned long lastControlTime = 0;
-unsigned long checkStart = 0;       // 0 = heating check not running
-float tempAtCheckStart = 0;
-float joules = 0;                   // heater energy since the check started
 
 // Average 32 readings, then convert divider voltage -> resistance -> C.
 // Returns -999 if the reading is impossible.
@@ -203,25 +176,6 @@ void loop() {
   bool heating = (setpoint > 0 || fixedWatts > 0);
   if (heating && temp == -999)   heaterOff("thermistor reading impossible (wire off or shorted?)");
   if (heating && temp > MAX_TEMP) heaterOff("water above MAX_TEMP");
-
-  // Heating check: is the heater's energy actually reaching the water?
-  // Only while warming up (below the setpoint, or a "p" test): holding a
-  // setpoint needs power with the temperature flat, which is normal.
-  bool warmingUp = (fixedWatts > 0) || (setpoint > 0 && temp < setpoint - 0.5);
-  if (!warmingUp) {
-    checkStart = 0;
-  } else if (checkStart == 0) {
-    checkStart = millis(); tempAtCheckStart = temp; joules = 0;
-  } else {
-    joules += watts;                                   // watts for 1 second = joules
-    if (millis() - checkStart >= CHECK_MS) {
-      float expectedRise = joules / (4180.0 * VESSEL_LITRES);   // energy = m * c * rise
-      float actualRise = temp - tempAtCheckStart;
-      if (expectedRise > 1.0 && actualRise < MIN_FRACTION * expectedRise)
-        heaterOff("heater energy isn't reaching the water (heater or thermistor out of the water? MOSFET dead?)");
-      checkStart = 0;                                  // start the next 10 min check
-    }
-  }
 
   // ---- Decide the heater power ----
   if (setpoint > 0) {
