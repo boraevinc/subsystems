@@ -1,0 +1,1540 @@
+[
+  {
+    "id": "broker",
+    "type": "mqtt-broker",
+    "name": "Dashboard connection",
+    "broker": "broker.hivemq.com",
+    "port": "1883",
+    "clientid": "",
+    "autoConnect": true,
+    "usetls": false,
+    "protocolVersion": "4",
+    "keepalive": "60",
+    "cleansession": true,
+    "autoUnsubscribe": true,
+    "birthTopic": "",
+    "birthQos": "0",
+    "birthRetain": "false",
+    "birthPayload": "",
+    "birthMsg": {},
+    "closeTopic": "",
+    "closeQos": "0",
+    "closeRetain": "false",
+    "closePayload": "",
+    "closeMsg": {},
+    "willTopic": "",
+    "willQos": "0",
+    "willRetain": "false",
+    "willPayload": "",
+    "willMsg": {},
+    "userProps": "",
+    "sessionExpiry": ""
+  },
+  {
+    "id": "fakebroker",
+    "type": "mqtt-broker",
+    "name": "Fake device connection",
+    "broker": "broker.hivemq.com",
+    "port": "1883",
+    "clientid": "",
+    "autoConnect": true,
+    "usetls": false,
+    "protocolVersion": "4",
+    "keepalive": "60",
+    "cleansession": true,
+    "autoUnsubscribe": true,
+    "birthTopic": "ucl-bioreactor-team28/status",
+    "birthQos": "1",
+    "birthRetain": "true",
+    "birthPayload": "online",
+    "birthMsg": {},
+    "closeTopic": "ucl-bioreactor-team28/status",
+    "closeQos": "1",
+    "closeRetain": "true",
+    "closePayload": "offline",
+    "closeMsg": {},
+    "willTopic": "ucl-bioreactor-team28/status",
+    "willQos": "1",
+    "willRetain": "true",
+    "willPayload": "offline",
+    "willMsg": {},
+    "userProps": "",
+    "sessionExpiry": ""
+  },
+  {
+    "id": "uibase",
+    "type": "ui-base",
+    "name": "Bioreactor UI",
+    "path": "/dashboard",
+    "appIcon": "",
+    "includeClientData": true,
+    "acceptsClientConfig": [
+      "ui-notification",
+      "ui-control"
+    ],
+    "showPathInSidebar": false,
+    "headerContent": "page",
+    "navigationStyle": "default",
+    "titleBarStyle": "default",
+    "showReconnectNotification": true,
+    "notificationDisplayTime": 1,
+    "showDisconnectNotification": true,
+    "allowInstall": false
+  },
+  {
+    "id": "uitheme",
+    "type": "ui-theme",
+    "name": "Bioreactor theme",
+    "colors": {
+      "surface": "#1f3a5f",
+      "primary": "#1f6feb",
+      "bgPage": "#f4f6f8",
+      "groupBg": "#ffffff",
+      "groupOutline": "#d0d7de"
+    },
+    "sizes": {
+      "density": "default",
+      "pagePadding": "12px",
+      "groupGap": "12px",
+      "groupBorderRadius": "8px",
+      "widgetGap": "12px"
+    }
+  },
+  {
+    "id": "uipage",
+    "type": "ui-page",
+    "name": "Bioreactor Control",
+    "ui": "uibase",
+    "path": "/bioreactor",
+    "icon": "flask",
+    "layout": "grid",
+    "theme": "uitheme",
+    "breakpoints": [
+      {
+        "name": "Default",
+        "px": "0",
+        "cols": "3"
+      },
+      {
+        "name": "Tablet",
+        "px": "576",
+        "cols": "6"
+      },
+      {
+        "name": "Small Desktop",
+        "px": "768",
+        "cols": "9"
+      },
+      {
+        "name": "Desktop",
+        "px": "1024",
+        "cols": "12"
+      }
+    ],
+    "order": 1,
+    "className": "",
+    "visible": "true",
+    "disabled": "false"
+  },
+  {
+    "id": "g_temp",
+    "type": "ui-group",
+    "name": "Temperature",
+    "page": "uipage",
+    "width": "4",
+    "height": "1",
+    "order": 1,
+    "showTitle": true,
+    "className": "",
+    "visible": "true",
+    "disabled": "false",
+    "groupType": "default"
+  },
+  {
+    "id": "g_ph",
+    "type": "ui-group",
+    "name": "pH",
+    "page": "uipage",
+    "width": "4",
+    "height": "1",
+    "order": 2,
+    "showTitle": true,
+    "className": "",
+    "visible": "true",
+    "disabled": "false",
+    "groupType": "default"
+  },
+  {
+    "id": "g_rpm",
+    "type": "ui-group",
+    "name": "Stirring speed",
+    "page": "uipage",
+    "width": "4",
+    "height": "1",
+    "order": 3,
+    "showTitle": true,
+    "className": "",
+    "visible": "true",
+    "disabled": "false",
+    "groupType": "default"
+  },
+  {
+    "id": "g_set",
+    "type": "ui-group",
+    "name": "Setpoints",
+    "page": "uipage",
+    "width": "6",
+    "height": "1",
+    "order": 4,
+    "showTitle": true,
+    "className": "",
+    "visible": "true",
+    "disabled": "false",
+    "groupType": "default"
+  },
+  {
+    "id": "g_conn",
+    "type": "ui-group",
+    "name": "Connection & logging",
+    "page": "uipage",
+    "width": "6",
+    "height": "1",
+    "order": 5,
+    "showTitle": true,
+    "className": "",
+    "visible": "true",
+    "disabled": "false",
+    "groupType": "default"
+  },
+  {
+    "id": "tab_dash",
+    "type": "tab",
+    "label": "Bioreactor dashboard",
+    "disabled": false,
+    "info": "The real interface. All MQTT topics start with ucl-bioreactor-team28"
+  },
+  {
+    "id": "tab_fake",
+    "type": "tab",
+    "label": "Fake device (disable when ESP32 is connected)",
+    "disabled": false,
+    "info": "Pretends to be the bioreactor + bridge ESP32 so the dashboard can be tested without hardware. Double-click the tab and set it to Disabled once the real ESP32 is publishing."
+  },
+  {
+    "id": "c1",
+    "type": "comment",
+    "z": "tab_dash",
+    "name": "1. Live readings: telemetry in -> gauges, charts, in-range checks",
+    "info": "Each 'Check ...' function holds the spec for one parameter (tolerance etc).",
+    "x": 180,
+    "y": 40,
+    "wires": []
+  },
+  {
+    "id": "in_tel",
+    "type": "mqtt in",
+    "z": "tab_dash",
+    "name": "Telemetry",
+    "topic": "ucl-bioreactor-team28/telemetry",
+    "qos": "1",
+    "datatype": "json",
+    "broker": "broker",
+    "nl": false,
+    "rap": true,
+    "rh": 0,
+    "inputs": 0,
+    "x": 150,
+    "y": 140,
+    "wires": [
+      [
+        "chk_temp",
+        "chk_ph",
+        "chk_rpm",
+        "log_csv",
+        "last_seen_store"
+      ]
+    ]
+  },
+  {
+    "id": "chk_temp",
+    "type": "function",
+    "z": "tab_dash",
+    "name": "Check Temperature",
+    "func": "// Spec for this parameter (from the Bioreactor Design Specification)\nconst KEY = 'temperature_C';          // field name in the telemetry JSON\nconst TOLERANCE = 0.5;      // allowed distance from the setpoint\nconst UNIT = '°C';\n\nconst t = msg.payload;\nconst reading = t[KEY];\nconst setpoint = t.setpoints ? t.setpoints[KEY] : null;\nif (typeof reading !== 'number') return null;   // ignore malformed messages\n\n// Output 1: gauge (just the number)\nconst gaugeMsg = { payload: reading };\n\n// Output 2: chart - one point for the reading, one for the setpoint\nconst chartMsgs = [{ topic: 'Reading', payload: reading }];\nif (typeof setpoint === 'number') chartMsgs.push({ topic: 'Setpoint', payload: setpoint });\n\n// Output 3: in-range status text\nlet status = 'No setpoint yet';\nif (typeof setpoint === 'number') {\n    const error = reading - setpoint;\n    const ok = Math.abs(error) <= TOLERANCE;\n    status = (ok ? '✅ In range' : '⚠️ Out of range') +\n             ` (setpoint ${setpoint} ${UNIT}, error ${error.toFixed(2)})`;\n}\nreturn [gaugeMsg, chartMsgs, { payload: status }];",
+    "outputs": 3,
+    "timeout": 0,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 420,
+    "y": 240,
+    "wires": [
+      [
+        "gauge_temp"
+      ],
+      [
+        "chart_temp"
+      ],
+      [
+        "status_temp"
+      ]
+    ]
+  },
+  {
+    "id": "gauge_temp",
+    "type": "ui-gauge",
+    "z": "tab_dash",
+    "name": "Temperature",
+    "group": "g_temp",
+    "order": 1,
+    "value": "payload",
+    "valueType": "msg",
+    "width": "0",
+    "height": "3",
+    "gtype": "gauge-half",
+    "gstyle": "needle",
+    "title": "Current reading",
+    "alwaysShowTitle": false,
+    "floatingTitlePosition": "top-left",
+    "units": "°C",
+    "icon": "",
+    "prefix": "",
+    "suffix": "",
+    "segments": [
+      {
+        "from": "10",
+        "color": "#5cd65c"
+      },
+      {
+        "from": "35",
+        "color": "#ffc800"
+      },
+      {
+        "from": "37",
+        "color": "#ea5353"
+      }
+    ],
+    "min": 10,
+    "max": 40,
+    "sizeThickness": 16,
+    "sizeGap": 4,
+    "sizeKeyThickness": 8,
+    "styleRounded": true,
+    "styleGlow": false,
+    "className": "",
+    "x": 680,
+    "y": 200,
+    "wires": []
+  },
+  {
+    "id": "chart_temp",
+    "type": "ui-chart",
+    "z": "tab_dash",
+    "group": "g_temp",
+    "name": "Temperature (last 10 min)",
+    "label": "Temperature (last 10 min)",
+    "order": 3,
+    "chartType": "line",
+    "category": "topic",
+    "categoryType": "msg",
+    "xAxisLabel": "",
+    "xAxisProperty": "",
+    "xAxisPropertyType": "timestamp",
+    "xAxisType": "time",
+    "xAxisFormat": "",
+    "xAxisFormatType": "auto",
+    "xmin": "",
+    "xmax": "",
+    "yAxisLabel": "°C",
+    "yAxisProperty": "payload",
+    "yAxisPropertyType": "msg",
+    "ymin": "15",
+    "ymax": "40",
+    "bins": 10,
+    "action": "append",
+    "stackSeries": false,
+    "pointShape": "false",
+    "pointRadius": 4,
+    "showLegend": true,
+    "removeOlder": "10",
+    "removeOlderUnit": "60",
+    "removeOlderPoints": "",
+    "colors": [
+      "#1f6feb",
+      "#cf222e",
+      "#8250df",
+      "#2ca02c",
+      "#ff7f0e",
+      "#9467bd",
+      "#8c564b",
+      "#e377c2",
+      "#7f7f7f"
+    ],
+    "textColor": [
+      "#666666"
+    ],
+    "textColorDefault": true,
+    "gridColor": [
+      "#e5e5e5"
+    ],
+    "gridColorDefault": true,
+    "width": "0",
+    "height": "6",
+    "className": "",
+    "interpolation": "linear",
+    "x": 690,
+    "y": 240,
+    "wires": []
+  },
+  {
+    "id": "status_temp",
+    "type": "ui-text",
+    "z": "tab_dash",
+    "group": "g_temp",
+    "order": 2,
+    "width": "0",
+    "height": "0",
+    "name": "Status",
+    "label": "Status",
+    "format": "{{msg.payload}}",
+    "layout": "row-spread",
+    "style": false,
+    "font": "",
+    "fontSize": 16,
+    "color": "#717171",
+    "wrapText": false,
+    "className": "",
+    "value": "payload",
+    "valueType": "msg",
+    "x": 670,
+    "y": 280,
+    "wires": []
+  },
+  {
+    "id": "chk_ph",
+    "type": "function",
+    "z": "tab_dash",
+    "name": "Check pH",
+    "func": "// Spec for this parameter (from the Bioreactor Design Specification)\nconst KEY = 'pH';          // field name in the telemetry JSON\nconst TOLERANCE = 0.1;      // allowed distance from the setpoint\nconst UNIT = '';\n\nconst t = msg.payload;\nconst reading = t[KEY];\nconst setpoint = t.setpoints ? t.setpoints[KEY] : null;\nif (typeof reading !== 'number') return null;   // ignore malformed messages\n\n// Output 1: gauge (just the number)\nconst gaugeMsg = { payload: reading };\n\n// Output 2: chart - one point for the reading, one for the setpoint\nconst chartMsgs = [{ topic: 'Reading', payload: reading }];\nif (typeof setpoint === 'number') chartMsgs.push({ topic: 'Setpoint', payload: setpoint });\n\n// Output 3: in-range status text\nlet status = 'No setpoint yet';\nif (typeof setpoint === 'number') {\n    const error = reading - setpoint;\n    const ok = Math.abs(error) <= TOLERANCE;\n    status = (ok ? '✅ In range' : '⚠️ Out of range') +\n             ` (setpoint ${setpoint} ${UNIT}, error ${error.toFixed(2)})`;\n}\nreturn [gaugeMsg, chartMsgs, { payload: status }];",
+    "outputs": 3,
+    "timeout": 0,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 420,
+    "y": 380,
+    "wires": [
+      [
+        "gauge_ph"
+      ],
+      [
+        "chart_ph"
+      ],
+      [
+        "status_ph"
+      ]
+    ]
+  },
+  {
+    "id": "gauge_ph",
+    "type": "ui-gauge",
+    "z": "tab_dash",
+    "name": "pH",
+    "group": "g_ph",
+    "order": 1,
+    "value": "payload",
+    "valueType": "msg",
+    "width": "0",
+    "height": "3",
+    "gtype": "gauge-half",
+    "gstyle": "needle",
+    "title": "Current reading",
+    "alwaysShowTitle": false,
+    "floatingTitlePosition": "top-left",
+    "units": "pH",
+    "icon": "",
+    "prefix": "",
+    "suffix": "",
+    "segments": [
+      {
+        "from": "0",
+        "color": "#ea5353"
+      },
+      {
+        "from": "3",
+        "color": "#5cd65c"
+      },
+      {
+        "from": "7",
+        "color": "#ffc800"
+      }
+    ],
+    "min": 0,
+    "max": 14,
+    "sizeThickness": 16,
+    "sizeGap": 4,
+    "sizeKeyThickness": 8,
+    "styleRounded": true,
+    "styleGlow": false,
+    "className": "",
+    "x": 680,
+    "y": 340,
+    "wires": []
+  },
+  {
+    "id": "chart_ph",
+    "type": "ui-chart",
+    "z": "tab_dash",
+    "group": "g_ph",
+    "name": "pH (last 10 min)",
+    "label": "pH (last 10 min)",
+    "order": 3,
+    "chartType": "line",
+    "category": "topic",
+    "categoryType": "msg",
+    "xAxisLabel": "",
+    "xAxisProperty": "",
+    "xAxisPropertyType": "timestamp",
+    "xAxisType": "time",
+    "xAxisFormat": "",
+    "xAxisFormatType": "auto",
+    "xmin": "",
+    "xmax": "",
+    "yAxisLabel": "pH",
+    "yAxisProperty": "payload",
+    "yAxisPropertyType": "msg",
+    "ymin": "2",
+    "ymax": "8",
+    "bins": 10,
+    "action": "append",
+    "stackSeries": false,
+    "pointShape": "false",
+    "pointRadius": 4,
+    "showLegend": true,
+    "removeOlder": "10",
+    "removeOlderUnit": "60",
+    "removeOlderPoints": "",
+    "colors": [
+      "#1f6feb",
+      "#cf222e",
+      "#8250df",
+      "#2ca02c",
+      "#ff7f0e",
+      "#9467bd",
+      "#8c564b",
+      "#e377c2",
+      "#7f7f7f"
+    ],
+    "textColor": [
+      "#666666"
+    ],
+    "textColorDefault": true,
+    "gridColor": [
+      "#e5e5e5"
+    ],
+    "gridColorDefault": true,
+    "width": "0",
+    "height": "6",
+    "className": "",
+    "interpolation": "linear",
+    "x": 690,
+    "y": 380,
+    "wires": []
+  },
+  {
+    "id": "status_ph",
+    "type": "ui-text",
+    "z": "tab_dash",
+    "group": "g_ph",
+    "order": 2,
+    "width": "0",
+    "height": "0",
+    "name": "Status",
+    "label": "Status",
+    "format": "{{msg.payload}}",
+    "layout": "row-spread",
+    "style": false,
+    "font": "",
+    "fontSize": 16,
+    "color": "#717171",
+    "wrapText": false,
+    "className": "",
+    "value": "payload",
+    "valueType": "msg",
+    "x": 670,
+    "y": 420,
+    "wires": []
+  },
+  {
+    "id": "chk_rpm",
+    "type": "function",
+    "z": "tab_dash",
+    "name": "Check Stirring speed",
+    "func": "// Spec for this parameter (from the Bioreactor Design Specification)\nconst KEY = 'rpm';          // field name in the telemetry JSON\nconst TOLERANCE = 20;      // allowed distance from the setpoint\nconst UNIT = 'RPM';\n\nconst t = msg.payload;\nconst reading = t[KEY];\nconst setpoint = t.setpoints ? t.setpoints[KEY] : null;\nif (typeof reading !== 'number') return null;   // ignore malformed messages\n\n// Output 1: gauge (just the number)\nconst gaugeMsg = { payload: reading };\n\n// Output 2: chart - one point for the reading, one for the setpoint\nconst chartMsgs = [{ topic: 'Reading', payload: reading }];\nif (typeof setpoint === 'number') chartMsgs.push({ topic: 'Setpoint', payload: setpoint });\n\n// Output 3: in-range status text\nlet status = 'No setpoint yet';\nif (typeof setpoint === 'number') {\n    const error = reading - setpoint;\n    const ok = Math.abs(error) <= TOLERANCE;\n    status = (ok ? '✅ In range' : '⚠️ Out of range') +\n             ` (setpoint ${setpoint} ${UNIT}, error ${error.toFixed(0)})`;\n}\nreturn [gaugeMsg, chartMsgs, { payload: status }];",
+    "outputs": 3,
+    "timeout": 0,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 420,
+    "y": 520,
+    "wires": [
+      [
+        "gauge_rpm"
+      ],
+      [
+        "chart_rpm"
+      ],
+      [
+        "status_rpm"
+      ]
+    ]
+  },
+  {
+    "id": "gauge_rpm",
+    "type": "ui-gauge",
+    "z": "tab_dash",
+    "name": "Stirring speed",
+    "group": "g_rpm",
+    "order": 1,
+    "value": "payload",
+    "valueType": "msg",
+    "width": "0",
+    "height": "3",
+    "gtype": "gauge-half",
+    "gstyle": "needle",
+    "title": "Current reading",
+    "alwaysShowTitle": false,
+    "floatingTitlePosition": "top-left",
+    "units": "RPM",
+    "icon": "",
+    "prefix": "",
+    "suffix": "",
+    "segments": [
+      {
+        "from": "0",
+        "color": "#ffc800"
+      },
+      {
+        "from": "500",
+        "color": "#5cd65c"
+      },
+      {
+        "from": "1550",
+        "color": "#ea5353"
+      }
+    ],
+    "min": 0,
+    "max": 2000,
+    "sizeThickness": 16,
+    "sizeGap": 4,
+    "sizeKeyThickness": 8,
+    "styleRounded": true,
+    "styleGlow": false,
+    "className": "",
+    "x": 680,
+    "y": 480,
+    "wires": []
+  },
+  {
+    "id": "chart_rpm",
+    "type": "ui-chart",
+    "z": "tab_dash",
+    "group": "g_rpm",
+    "name": "Stirring speed (last 10 min)",
+    "label": "Stirring speed (last 10 min)",
+    "order": 3,
+    "chartType": "line",
+    "category": "topic",
+    "categoryType": "msg",
+    "xAxisLabel": "",
+    "xAxisProperty": "",
+    "xAxisPropertyType": "timestamp",
+    "xAxisType": "time",
+    "xAxisFormat": "",
+    "xAxisFormatType": "auto",
+    "xmin": "",
+    "xmax": "",
+    "yAxisLabel": "RPM",
+    "yAxisProperty": "payload",
+    "yAxisPropertyType": "msg",
+    "ymin": "0",
+    "ymax": "1800",
+    "bins": 10,
+    "action": "append",
+    "stackSeries": false,
+    "pointShape": "false",
+    "pointRadius": 4,
+    "showLegend": true,
+    "removeOlder": "10",
+    "removeOlderUnit": "60",
+    "removeOlderPoints": "",
+    "colors": [
+      "#1f6feb",
+      "#cf222e",
+      "#8250df",
+      "#2ca02c",
+      "#ff7f0e",
+      "#9467bd",
+      "#8c564b",
+      "#e377c2",
+      "#7f7f7f"
+    ],
+    "textColor": [
+      "#666666"
+    ],
+    "textColorDefault": true,
+    "gridColor": [
+      "#e5e5e5"
+    ],
+    "gridColorDefault": true,
+    "width": "0",
+    "height": "6",
+    "className": "",
+    "interpolation": "linear",
+    "x": 690,
+    "y": 520,
+    "wires": []
+  },
+  {
+    "id": "status_rpm",
+    "type": "ui-text",
+    "z": "tab_dash",
+    "group": "g_rpm",
+    "order": 2,
+    "width": "0",
+    "height": "0",
+    "name": "Status",
+    "label": "Status",
+    "format": "{{msg.payload}}",
+    "layout": "row-spread",
+    "style": false,
+    "font": "",
+    "fontSize": 16,
+    "color": "#717171",
+    "wrapText": false,
+    "className": "",
+    "value": "payload",
+    "valueType": "msg",
+    "x": 670,
+    "y": 560,
+    "wires": []
+  },
+  {
+    "id": "c2",
+    "type": "comment",
+    "z": "tab_dash",
+    "name": "2. Setpoints: sliders -> Apply -> publish to the device",
+    "info": "",
+    "x": 170,
+    "y": 640,
+    "wires": []
+  },
+  {
+    "id": "inj_init",
+    "type": "inject",
+    "z": "tab_dash",
+    "name": "On start",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": true,
+    "onceDelay": "0.5",
+    "topic": "",
+    "payload": "",
+    "payloadType": "date",
+    "x": 150,
+    "y": 720,
+    "wires": [
+      [
+        "init_sp"
+      ]
+    ]
+  },
+  {
+    "id": "init_sp",
+    "type": "function",
+    "z": "tab_dash",
+    "name": "Default setpoints",
+    "func": "// Runs once at start-up: sets the default setpoints (spec: pH default 5)\nconst defaults = { temperature_C: 30, pH: 5, rpm: 1000 };\nflow.set('pending', defaults);\nreturn [\n    { payload: defaults.temperature_C },\n    { payload: defaults.pH },\n    { payload: defaults.rpm },\n    { payload: 'Defaults loaded - press Apply to send them' }\n];",
+    "outputs": 4,
+    "timeout": 0,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 360,
+    "y": 720,
+    "wires": [
+      [
+        "sl_temperature_C"
+      ],
+      [
+        "sl_pH"
+      ],
+      [
+        "sl_rpm"
+      ],
+      [
+        "txt_send"
+      ]
+    ]
+  },
+  {
+    "id": "sl_temperature_C",
+    "type": "ui-slider",
+    "z": "tab_dash",
+    "group": "g_set",
+    "name": "Temperature (°C)",
+    "label": "Temperature (°C)",
+    "tooltip": "",
+    "order": 1,
+    "width": "0",
+    "height": "0",
+    "passthru": false,
+    "outs": "end",
+    "topic": "temperature_C",
+    "topicType": "str",
+    "thumbLabel": true,
+    "showTicks": "always",
+    "min": 25,
+    "max": 35,
+    "step": 0.1,
+    "className": "",
+    "iconPrepend": "",
+    "iconAppend": "",
+    "color": "",
+    "colorTrack": "",
+    "colorThumb": "",
+    "showTextField": true,
+    "x": 620,
+    "y": 680,
+    "wires": [
+      [
+        "store_sp"
+      ]
+    ]
+  },
+  {
+    "id": "sl_pH",
+    "type": "ui-slider",
+    "z": "tab_dash",
+    "group": "g_set",
+    "name": "pH",
+    "label": "pH",
+    "tooltip": "",
+    "order": 2,
+    "width": "0",
+    "height": "0",
+    "passthru": false,
+    "outs": "end",
+    "topic": "pH",
+    "topicType": "str",
+    "thumbLabel": true,
+    "showTicks": "always",
+    "min": 3,
+    "max": 7,
+    "step": 0.1,
+    "className": "",
+    "iconPrepend": "",
+    "iconAppend": "",
+    "color": "",
+    "colorTrack": "",
+    "colorThumb": "",
+    "showTextField": true,
+    "x": 620,
+    "y": 720,
+    "wires": [
+      [
+        "store_sp"
+      ]
+    ]
+  },
+  {
+    "id": "sl_rpm",
+    "type": "ui-slider",
+    "z": "tab_dash",
+    "group": "g_set",
+    "name": "Stirring (RPM)",
+    "label": "Stirring (RPM)",
+    "tooltip": "",
+    "order": 3,
+    "width": "0",
+    "height": "0",
+    "passthru": false,
+    "outs": "end",
+    "topic": "rpm",
+    "topicType": "str",
+    "thumbLabel": true,
+    "showTicks": "always",
+    "min": 500,
+    "max": 1500,
+    "step": 10,
+    "className": "",
+    "iconPrepend": "",
+    "iconAppend": "",
+    "color": "",
+    "colorTrack": "",
+    "colorThumb": "",
+    "showTextField": true,
+    "x": 620,
+    "y": 760,
+    "wires": [
+      [
+        "store_sp"
+      ]
+    ]
+  },
+  {
+    "id": "store_sp",
+    "type": "function",
+    "z": "tab_dash",
+    "name": "Remember slider value",
+    "func": "// A slider moved: remember the new value until Apply is pressed\nconst pending = flow.get('pending') || {};\npending[msg.topic] = Number(msg.payload);\nflow.set('pending', pending);\nreturn { payload: 'Changed - press Apply to send' };",
+    "outputs": 1,
+    "timeout": 0,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 860,
+    "y": 720,
+    "wires": [
+      [
+        "txt_send"
+      ]
+    ]
+  },
+  {
+    "id": "btn_apply",
+    "type": "ui-button",
+    "z": "tab_dash",
+    "group": "g_set",
+    "name": "Apply",
+    "label": "Apply setpoints",
+    "order": 4,
+    "width": "0",
+    "height": "0",
+    "emulateClick": false,
+    "tooltip": "",
+    "color": "",
+    "bgcolor": "",
+    "className": "",
+    "icon": "send",
+    "iconPosition": "left",
+    "payload": "",
+    "payloadType": "str",
+    "topic": "apply",
+    "topicType": "str",
+    "buttonColor": "",
+    "textColor": "",
+    "iconColor": "",
+    "enableClick": true,
+    "enablePointerdown": false,
+    "pointerdownPayload": "",
+    "pointerdownPayloadType": "str",
+    "enablePointerup": false,
+    "pointerupPayload": "",
+    "pointerupPayloadType": "str",
+    "x": 150,
+    "y": 820,
+    "wires": [
+      [
+        "send_sp"
+      ]
+    ]
+  },
+  {
+    "id": "send_sp",
+    "type": "function",
+    "z": "tab_dash",
+    "name": "Validate & send",
+    "func": "// Apply pressed: validate against the spec ranges, then publish\nconst RANGES = {\n    temperature_C: [25, 35],\n    pH: [3, 7],\n    rpm: [500, 1500]\n};\nconst sp = flow.get('pending') || {};\nfor (const [key, [lo, hi]] of Object.entries(RANGES)) {\n    if (typeof sp[key] !== 'number' || sp[key] < lo || sp[key] > hi) {\n        return [null, { payload: `❌ ${key} must be between ${lo} and ${hi}` }];\n    }\n}\nflow.set('sentAt', Date.now());\nreturn [\n    { payload: sp },                                   // -> MQTT (sent as JSON)\n    { payload: '⏳ Sent - waiting for the device to confirm…' }\n];",
+    "outputs": 2,
+    "timeout": 0,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 360,
+    "y": 820,
+    "wires": [
+      [
+        "out_sp"
+      ],
+      [
+        "txt_send"
+      ]
+    ]
+  },
+  {
+    "id": "out_sp",
+    "type": "mqtt out",
+    "z": "tab_dash",
+    "name": "Send setpoints",
+    "topic": "ucl-bioreactor-team28/setpoints/set",
+    "qos": "1",
+    "retain": "",
+    "respTopic": "",
+    "contentType": "",
+    "userProps": "",
+    "correl": "",
+    "expiry": "",
+    "broker": "broker",
+    "x": 620,
+    "y": 820,
+    "wires": []
+  },
+  {
+    "id": "txt_send",
+    "type": "ui-text",
+    "z": "tab_dash",
+    "group": "g_set",
+    "order": 5,
+    "width": "0",
+    "height": "0",
+    "name": "Status",
+    "label": "Status",
+    "format": "{{msg.payload}}",
+    "layout": "row-spread",
+    "style": false,
+    "font": "",
+    "fontSize": 16,
+    "color": "#717171",
+    "wrapText": false,
+    "className": "",
+    "value": "payload",
+    "valueType": "msg",
+    "x": 1060,
+    "y": 720,
+    "wires": []
+  },
+  {
+    "id": "in_state",
+    "type": "mqtt in",
+    "z": "tab_dash",
+    "name": "Device setpoints",
+    "topic": "ucl-bioreactor-team28/setpoints/state",
+    "qos": "1",
+    "datatype": "json",
+    "broker": "broker",
+    "nl": false,
+    "rap": true,
+    "rh": 0,
+    "inputs": 0,
+    "x": 150,
+    "y": 900,
+    "wires": [
+      [
+        "fmt_state"
+      ]
+    ]
+  },
+  {
+    "id": "fmt_state",
+    "type": "function",
+    "z": "tab_dash",
+    "name": "Format device setpoints",
+    "func": "// The device reports the setpoints it is actually using\nconst s = msg.payload;\nconst sentAt = flow.get('sentAt');\nlet ack = '';\nif (sentAt) {\n    ack = `✅ Applied in ${((Date.now() - sentAt) / 1000).toFixed(2)} s`;  // round-trip time\n    flow.set('sentAt', null);\n}\nreturn [\n    { payload: `${s.temperature_C} °C  |  pH ${s.pH}  |  ${s.rpm} RPM` },\n    ack ? { payload: ack } : null\n];",
+    "outputs": 2,
+    "timeout": 0,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 380,
+    "y": 900,
+    "wires": [
+      [
+        "txt_state"
+      ],
+      [
+        "txt_send"
+      ]
+    ]
+  },
+  {
+    "id": "txt_state",
+    "type": "ui-text",
+    "z": "tab_dash",
+    "group": "g_set",
+    "order": 6,
+    "width": "0",
+    "height": "0",
+    "name": "Device is using",
+    "label": "Device is using",
+    "format": "{{msg.payload}}",
+    "layout": "row-spread",
+    "style": false,
+    "font": "",
+    "fontSize": 16,
+    "color": "#717171",
+    "wrapText": false,
+    "className": "",
+    "value": "payload",
+    "valueType": "msg",
+    "x": 640,
+    "y": 900,
+    "wires": []
+  },
+  {
+    "id": "c3",
+    "type": "comment",
+    "z": "tab_dash",
+    "name": "3. Connection status and CSV logging",
+    "info": "",
+    "x": 180,
+    "y": 980,
+    "wires": []
+  },
+  {
+    "id": "in_status",
+    "type": "mqtt in",
+    "z": "tab_dash",
+    "name": "Device status",
+    "topic": "ucl-bioreactor-team28/status",
+    "qos": "1",
+    "datatype": "utf8",
+    "broker": "broker",
+    "nl": false,
+    "rap": true,
+    "rh": 0,
+    "inputs": 0,
+    "x": 150,
+    "y": 1040,
+    "wires": [
+      [
+        "fmt_status"
+      ]
+    ]
+  },
+  {
+    "id": "fmt_status",
+    "type": "function",
+    "z": "tab_dash",
+    "name": "Format status",
+    "func": "msg.payload = String(msg.payload) === 'online' ? '🟢 Online' : '🔴 Offline';\nreturn msg;",
+    "outputs": 1,
+    "timeout": 0,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 370,
+    "y": 1040,
+    "wires": [
+      [
+        "txt_status"
+      ]
+    ]
+  },
+  {
+    "id": "txt_status",
+    "type": "ui-text",
+    "z": "tab_dash",
+    "group": "g_conn",
+    "order": 1,
+    "width": "0",
+    "height": "0",
+    "name": "Device",
+    "label": "Device",
+    "format": "{{msg.payload}}",
+    "layout": "row-spread",
+    "style": false,
+    "font": "",
+    "fontSize": 16,
+    "color": "#717171",
+    "wrapText": false,
+    "className": "",
+    "value": "payload",
+    "valueType": "msg",
+    "x": 600,
+    "y": 1040,
+    "wires": []
+  },
+  {
+    "id": "last_seen_store",
+    "type": "function",
+    "z": "tab_dash",
+    "name": "Remember time of last data",
+    "func": "flow.set('lastSeen', Date.now());\nreturn null;",
+    "outputs": 1,
+    "timeout": 0,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 400,
+    "y": 1100,
+    "wires": [
+      []
+    ]
+  },
+  {
+    "id": "inj_tick",
+    "type": "inject",
+    "z": "tab_dash",
+    "name": "Every 2 s",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "2",
+    "crontab": "",
+    "once": true,
+    "onceDelay": "0.5",
+    "topic": "",
+    "payload": "",
+    "payloadType": "date",
+    "x": 160,
+    "y": 1140,
+    "wires": [
+      [
+        "last_seen_fmt"
+      ]
+    ]
+  },
+  {
+    "id": "last_seen_fmt",
+    "type": "function",
+    "z": "tab_dash",
+    "name": "Time since last data",
+    "func": "const last = flow.get('lastSeen');\nif (!last) return { payload: 'No data received yet' };\nconst age = (Date.now() - last) / 1000;\nreturn { payload: age < 5 ? `${age.toFixed(0)} s ago` : `⚠️ ${age.toFixed(0)} s ago - no recent data` };",
+    "outputs": 1,
+    "timeout": 0,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 400,
+    "y": 1140,
+    "wires": [
+      [
+        "txt_last"
+      ]
+    ]
+  },
+  {
+    "id": "txt_last",
+    "type": "ui-text",
+    "z": "tab_dash",
+    "group": "g_conn",
+    "order": 2,
+    "width": "0",
+    "height": "0",
+    "name": "Last data",
+    "label": "Last data",
+    "format": "{{msg.payload}}",
+    "layout": "row-spread",
+    "style": false,
+    "font": "",
+    "fontSize": 16,
+    "color": "#717171",
+    "wrapText": false,
+    "className": "",
+    "value": "payload",
+    "valueType": "msg",
+    "x": 620,
+    "y": 1140,
+    "wires": []
+  },
+  {
+    "id": "in_marker",
+    "type": "ui-text-input",
+    "z": "tab_dash",
+    "group": "g_conn",
+    "name": "Mark test run",
+    "label": "Mark test run (e.g. 'heater step 25→30')",
+    "order": 3,
+    "width": "0",
+    "height": "0",
+    "topic": "marker",
+    "topicType": "str",
+    "mode": "text",
+    "tooltip": "",
+    "delay": 300,
+    "passthru": false,
+    "sendOnDelay": false,
+    "sendOnBlur": false,
+    "sendOnEnter": true,
+    "className": "",
+    "clearable": true,
+    "sendOnClear": false,
+    "icon": "flag",
+    "iconPosition": "left",
+    "iconInnerPosition": "inside",
+    "x": 170,
+    "y": 1200,
+    "wires": [
+      [
+        "set_marker"
+      ]
+    ]
+  },
+  {
+    "id": "set_marker",
+    "type": "function",
+    "z": "tab_dash",
+    "name": "Store marker",
+    "func": "flow.set('marker', String(msg.payload || '').replace(/,/g, ';'));\nreturn { payload: `Next log row tagged: \"${flow.get('marker')}\"` };",
+    "outputs": 1,
+    "timeout": 0,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 400,
+    "y": 1200,
+    "wires": [
+      [
+        "txt_marker"
+      ]
+    ]
+  },
+  {
+    "id": "txt_marker",
+    "type": "ui-text",
+    "z": "tab_dash",
+    "group": "g_conn",
+    "order": 4,
+    "width": "0",
+    "height": "0",
+    "name": "Marker",
+    "label": "Marker",
+    "format": "{{msg.payload}}",
+    "layout": "row-spread",
+    "style": false,
+    "font": "",
+    "fontSize": 16,
+    "color": "#717171",
+    "wrapText": false,
+    "className": "",
+    "value": "payload",
+    "valueType": "msg",
+    "x": 620,
+    "y": 1200,
+    "wires": []
+  },
+  {
+    "id": "log_csv",
+    "type": "function",
+    "z": "tab_dash",
+    "name": "Format CSV row",
+    "func": "// Appends one CSV row per telemetry message.\n// A new file is started each time Node-RED starts: bioreactor-log-<date-time>.csv\nlet file = context.get('file');\nconst rows = [];\nif (!file) {\n    const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);\n    file = `bioreactor-log-${stamp}.csv`;\n    context.set('file', file);\n    rows.push('time_iso,temperature_C,pH,rpm,sp_temperature_C,sp_pH,sp_rpm,' +\n              'heater,motor,acid_pump,base_pump,marker');\n}\nconst t = msg.payload;\nconst sp = t.setpoints || {};\nconst a = t.actuators || {};\nconst marker = flow.get('marker') || '';\nflow.set('marker', '');          // a marker is written on one row only\nrows.push([new Date().toISOString(), t.temperature_C, t.pH, t.rpm,\n           sp.temperature_C, sp.pH, sp.rpm,\n           a.heater, a.motor, a.acid_pump, a.base_pump, marker].join(','));\nnode.status({ text: file });\nreturn { filename: file, payload: rows.join('\\n') };",
+    "outputs": 1,
+    "timeout": 0,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 400,
+    "y": 1260,
+    "wires": [
+      [
+        "file_csv"
+      ]
+    ]
+  },
+  {
+    "id": "file_csv",
+    "type": "file",
+    "z": "tab_dash",
+    "name": "Append to log file",
+    "filename": "filename",
+    "filenameType": "msg",
+    "appendNewline": true,
+    "createDir": true,
+    "overwriteFile": "false",
+    "encoding": "none",
+    "x": 640,
+    "y": 1260,
+    "wires": [
+      []
+    ]
+  },
+  {
+    "id": "f0",
+    "type": "comment",
+    "z": "tab_fake",
+    "name": "Pretends to be the ESP32. Disable this tab when the real device is connected.",
+    "info": "",
+    "x": 230,
+    "y": 40,
+    "wires": []
+  },
+  {
+    "id": "f_in_sp",
+    "type": "mqtt in",
+    "z": "tab_fake",
+    "name": "Setpoint commands",
+    "topic": "ucl-bioreactor-team28/setpoints/set",
+    "qos": "1",
+    "datatype": "json",
+    "broker": "fakebroker",
+    "nl": false,
+    "rap": true,
+    "rh": 0,
+    "inputs": 0,
+    "x": 160,
+    "y": 120,
+    "wires": [
+      [
+        "f_apply"
+      ]
+    ]
+  },
+  {
+    "id": "f_apply",
+    "type": "function",
+    "z": "tab_fake",
+    "name": "Apply setpoints",
+    "func": "// Like the real device should: clamp anything out of range (public broker!)\nconst clamp = (v, lo, hi, d) => (typeof v === 'number' ? Math.min(hi, Math.max(lo, v)) : d);\nconst cur = flow.get('setpoints') || { temperature_C: 30, pH: 5, rpm: 1000 };\nconst p = msg.payload || {};\nconst sp = {\n    temperature_C: clamp(p.temperature_C, 25, 35, cur.temperature_C),\n    pH: clamp(p.pH, 3, 7, cur.pH),\n    rpm: clamp(p.rpm, 500, 1500, cur.rpm)\n};\nflow.set('setpoints', sp);\nreturn { payload: sp };",
+    "outputs": 1,
+    "timeout": 0,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 400,
+    "y": 120,
+    "wires": [
+      [
+        "f_out_state"
+      ]
+    ]
+  },
+  {
+    "id": "f_out_state",
+    "type": "mqtt out",
+    "z": "tab_fake",
+    "name": "Report setpoints",
+    "topic": "ucl-bioreactor-team28/setpoints/state",
+    "qos": "1",
+    "retain": "true",
+    "respTopic": "",
+    "contentType": "",
+    "userProps": "",
+    "correl": "",
+    "expiry": "",
+    "broker": "fakebroker",
+    "x": 650,
+    "y": 120,
+    "wires": []
+  },
+  {
+    "id": "f_tick",
+    "type": "inject",
+    "z": "tab_fake",
+    "name": "Every 1 s",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "1",
+    "crontab": "",
+    "once": true,
+    "onceDelay": "1",
+    "topic": "",
+    "payload": "",
+    "payloadType": "date",
+    "x": 150,
+    "y": 220,
+    "wires": [
+      [
+        "f_sim"
+      ]
+    ]
+  },
+  {
+    "id": "f_sim",
+    "type": "function",
+    "z": "tab_fake",
+    "name": "Simulate bioreactor",
+    "func": "// A very rough bioreactor model: each reading drifts towards its setpoint with noise.\nconst noise = (s) => (Math.random() - 0.5) * 2 * s;\nconst sp = flow.get('setpoints') || { temperature_C: 30, pH: 5, rpm: 1000 };\nconst st = flow.get('state') || { temperature_C: 18, pH: 7, rpm: 0 };\n\nst.temperature_C += (sp.temperature_C - st.temperature_C) * 0.03 + noise(0.05);  // slow\nst.pH            += (sp.pH - st.pH) * 0.08 + noise(0.02);                          // medium\nst.rpm           += (sp.rpm - st.rpm) * 0.4 + noise(6);                            // fast\nflow.set('state', st);\n\nconst r = (v, dp) => Number(v.toFixed(dp));\nconst clamp01 = (v) => Math.min(1, Math.max(0, v));\nreturn { payload: {\n    temperature_C: r(st.temperature_C, 2),\n    pH: r(st.pH, 2),\n    rpm: r(st.rpm, 0),\n    actuators: {\n        heater: r(clamp01((sp.temperature_C - st.temperature_C) / 2), 2),\n        motor: r(clamp01(st.rpm / 1500), 2),\n        acid_pump: st.pH > sp.pH + 0.05 ? 0.3 : 0,\n        base_pump: st.pH < sp.pH - 0.05 ? 0.3 : 0\n    },\n    setpoints: sp\n}};",
+    "outputs": 1,
+    "timeout": 0,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 380,
+    "y": 220,
+    "wires": [
+      [
+        "f_out_tel"
+      ]
+    ]
+  },
+  {
+    "id": "f_out_tel",
+    "type": "mqtt out",
+    "z": "tab_fake",
+    "name": "Publish telemetry",
+    "topic": "ucl-bioreactor-team28/telemetry",
+    "qos": "1",
+    "retain": "",
+    "respTopic": "",
+    "contentType": "",
+    "userProps": "",
+    "correl": "",
+    "expiry": "",
+    "broker": "fakebroker",
+    "x": 620,
+    "y": 220,
+    "wires": []
+  },
+  {
+    "id": "f_start",
+    "type": "inject",
+    "z": "tab_fake",
+    "name": "On start",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": true,
+    "onceDelay": "1",
+    "topic": "",
+    "payload": "",
+    "payloadType": "date",
+    "x": 150,
+    "y": 300,
+    "wires": [
+      [
+        "f_startfn"
+      ]
+    ]
+  },
+  {
+    "id": "f_startfn",
+    "type": "function",
+    "z": "tab_fake",
+    "name": "Initial setpoints",
+    "func": "// On start-up, report the initial setpoints (retained so the dashboard sees them)\nconst sp = flow.get('setpoints') || { temperature_C: 30, pH: 5, rpm: 1000 };\nflow.set('setpoints', sp);\nreturn { payload: sp };",
+    "outputs": 1,
+    "timeout": 0,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 380,
+    "y": 300,
+    "wires": [
+      [
+        "f_out_state"
+      ]
+    ]
+  }
+]
